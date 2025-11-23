@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Send, Eraser, Loader2, Sparkles, Paperclip } from 'lucide-react';
 import { ChatMessage, MessageRole } from '../types';
 import ChatMessageBubble from '../components/ChatMessageBubble';
@@ -12,7 +12,10 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    
+    // scrollIntoView は画面全体を動かすリスクがあるため廃止。
+    // 代わりにチャットエリアのコンテナ自体のscrollTopを操作する。
+    const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Initial greeting based on mode
@@ -41,13 +44,18 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
         }]);
     }, [mode]);
 
+    // 安全なスクロール処理: コンテナ内部のスクロール位置のみを操作する
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (chatContainerRef.current) {
+            const { scrollHeight, clientHeight } = chatContainerRef.current;
+            chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
+        }
     };
 
-    useEffect(() => {
+    // メッセージ追加時に即座にスクロール
+    useLayoutEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [messages, isLoading]);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -120,7 +128,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-6rem)] md:h-[calc(100vh-3rem)] bg-[#0B1120]/40 backdrop-blur-sm rounded-3xl border border-slate-800/50 overflow-hidden shadow-2xl relative">
+        <div className="flex flex-col h-full bg-[#0B1120]/40 backdrop-blur-sm rounded-3xl border border-slate-800/50 overflow-hidden shadow-2xl relative">
             {/* Header */}
             <div className="absolute top-0 left-0 right-0 px-6 py-4 bg-slate-900/80 backdrop-blur-md border-b border-slate-800/50 flex justify-between items-center z-10">
                 <div className="flex items-center gap-3">
@@ -146,8 +154,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
                 </button>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 pt-20 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+            {/* Chat Area - Attach Ref here */}
+            <div 
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-4 md:p-6 pt-20 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent"
+            >
                 {messages.map((msg) => (
                     <ChatMessageBubble key={msg.id} message={msg} />
                 ))}
@@ -165,7 +176,7 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
                         </div>
                      </div>
                 )}
-                <div ref={messagesEndRef} className="h-4" />
+                {/* Removed empty div with ref used for scrollIntoView */}
             </div>
 
             {/* Input Area */}

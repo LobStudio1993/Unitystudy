@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Guidelines from './pages/Guidelines';
@@ -8,6 +8,14 @@ import { Menu, X } from 'lucide-react';
 const App: React.FC = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Reset scroll position when tab changes (useLayoutEffect prevents visual jumping)
+    useLayoutEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [activeTab]);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -28,8 +36,12 @@ const App: React.FC = () => {
         }
     };
 
+    // "App Mode" means the content is an interactive tool that handles its own scrolling (like Chat)
+    // "Page Mode" means the content is a document that needs the parent to scroll (like Dashboard)
+    const isAppMode = ['assistant', 'spec', 'review', 'docs'].includes(activeTab);
+
     return (
-        <div className="flex h-screen bg-[#0B1120] text-slate-200 overflow-hidden relative selection:bg-indigo-500/30 selection:text-indigo-200">
+        <div className="flex h-dvh bg-[#0B1120] text-slate-200 overflow-hidden relative selection:bg-indigo-500/30 selection:text-indigo-200">
             {/* Ambient Background Effects */}
             <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-[500px] h-[500px] bg-violet-500/10 rounded-full blur-[120px] pointer-events-none" />
@@ -78,8 +90,13 @@ const App: React.FC = () => {
 
             {/* Main Content */}
             <main className="flex-1 overflow-hidden relative z-10 flex flex-col">
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 pt-20 md:pt-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                    <div className="mx-auto max-w-6xl h-full">
+                <div 
+                    ref={scrollContainerRef}
+                    className={`flex-1 p-4 md:p-8 pt-20 md:pt-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent ${
+                        isAppMode ? 'overflow-hidden' : 'overflow-y-auto'
+                    }`}
+                >
+                    <div className={`mx-auto h-full ${isAppMode ? 'max-w-full' : 'max-w-6xl'}`}>
                         {renderContent()}
                     </div>
                 </div>
