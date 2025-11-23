@@ -62,11 +62,11 @@ const SPEC_DESIGN_INSTRUCTION = `
 - プログラマーが読んで「変数」や「ステート」がイメージできる表現を使う。
 `;
 
-export const chatWithGemini = async (message: string, mode: 'general' | 'review' | 'docs' | 'spec' = 'general'): Promise<string> => {
+export const chatWithGemini = async (message: string, mode: 'general' | 'review' | 'docs' | 'spec' = 'general', imageBase64?: string): Promise<string> => {
     try {
         let systemInstruction = BASE_SYSTEM_INSTRUCTION;
         // Use gemini-3-pro-preview for all modes to ensure high quality responses
-        let modelId = 'gemini-3-pro-preview';
+        const modelId = 'gemini-3-pro-preview';
 
         if (mode === 'review') {
             systemInstruction = REVIEW_SYSTEM_INSTRUCTION;
@@ -76,9 +76,36 @@ export const chatWithGemini = async (message: string, mode: 'general' | 'review'
             systemInstruction = SPEC_DESIGN_INSTRUCTION;
         }
 
+        let contents: any = message;
+
+        // If image is provided, construct a multimodal request
+        if (imageBase64) {
+            // Extract the actual base64 data and mime type from the data URL
+            // Format example: "data:image/png;base64,iVBORw0KGgo..."
+            const matches = imageBase64.match(/^data:(.+);base64,(.+)$/);
+            if (matches) {
+                const mimeType = matches[1];
+                const data = matches[2];
+
+                contents = {
+                    parts: [
+                        {
+                            inlineData: {
+                                mimeType: mimeType,
+                                data: data
+                            }
+                        },
+                        {
+                            text: message
+                        }
+                    ]
+                };
+            }
+        }
+
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: modelId,
-            contents: message,
+            contents: contents,
             config: {
                 systemInstruction: systemInstruction,
             }

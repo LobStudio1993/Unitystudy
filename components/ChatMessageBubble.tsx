@@ -25,6 +25,18 @@ const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({ message }) => {
                     ? 'bg-indigo-600 text-white rounded-tr-none' 
                     : 'bg-slate-800/80 backdrop-blur border border-slate-700/50 text-slate-200 rounded-tl-none'
             }`}>
+                {/* Image Attachment Display */}
+                {message.image && (
+                    <div className="mb-4 rounded-xl overflow-hidden border border-white/10 shadow-sm">
+                        <img 
+                            src={message.image} 
+                            alt="Attached content" 
+                            className="w-full h-auto max-h-[300px] object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                            onClick={() => window.open(message.image, '_blank')}
+                        />
+                    </div>
+                )}
+
                 <div className={`prose prose-invert prose-sm max-w-none ${
                     isUser ? 'prose-p:text-indigo-50 prose-headings:text-white' : 'prose-p:text-slate-300 prose-headings:text-slate-100'
                 }`}>

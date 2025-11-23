@@ -11,6 +11,7 @@ export interface ChatMessage {
     text: string;
     timestamp: number;
     type?: 'text' | 'code-review' | 'doc-generation';
+    image?: string; // Base64 data string for image attachments
 }
 
 export interface RuleSection {
