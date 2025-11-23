@@ -13,8 +13,6 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     
-    // scrollIntoView は画面全体を動かすリスクがあるため廃止。
-    // 代わりにチャットエリアのコンテナ自体のscrollTopを操作する。
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -44,44 +42,53 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
         }]);
     }, [mode]);
 
-    // 安全なスクロール処理: コンテナ内部のスクロール位置のみを操作する
+    // 安全なスクロール処理
     const scrollToBottom = () => {
         if (chatContainerRef.current) {
             const { scrollHeight, clientHeight } = chatContainerRef.current;
+            // 即座に最下部へ移動（アニメーションなしでズレを防ぐ）
             chatContainerRef.current.scrollTop = scrollHeight - clientHeight;
         }
     };
 
-    // メッセージ追加時に即座にスクロール
+    // リサイズとスクロールを同期させる
     useLayoutEffect(() => {
-        scrollToBottom();
-    }, [messages, isLoading]);
-
-    // Auto-resize textarea
-    useEffect(() => {
+        // 1. 先にテキストエリアの高さを確定させる
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
             textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
         }
-    }, [input]);
+
+        // 2. レイアウト確定後にスクロール位置を調整する
+        scrollToBottom();
+    }, [input, messages, isLoading]);
+
+    // ウィンドウサイズ変更（モバイルキーボード出現など）時にもスクロール調整
+    useEffect(() => {
+        const handleResize = () => scrollToBottom();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
 
+        // 現在の入力を退避してからクリアする（非同期処理中のstate参照エラー防止）
+        const currentInput = input;
+        setInput('');
+        
         const userMsg: ChatMessage = {
             id: Date.now().toString(),
             role: MessageRole.USER,
-            text: input,
+            text: currentInput,
             timestamp: Date.now()
         };
 
         setMessages(prev => [...prev, userMsg]);
-        setInput('');
-        if (textareaRef.current) textareaRef.current.style.height = 'auto';
         setIsLoading(true);
 
         try {
-            const responseText = await chatWithGemini(input, mode);
+            const responseText = await chatWithGemini(currentInput, mode);
             
             const modelMsg: ChatMessage = {
                 id: (Date.now() + 1).toString(),
@@ -98,6 +105,9 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        // IME入力中（日本語変換中）のEnterキーは無視する
+        if (e.nativeEvent.isComposing) return;
+
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -154,10 +164,11 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
                 </button>
             </div>
 
-            {/* Chat Area - Attach Ref here */}
+            {/* Chat Area */}
             <div 
                 ref={chatContainerRef}
                 className="flex-1 overflow-y-auto p-4 md:p-6 pt-20 space-y-8 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent"
+                style={{ scrollBehavior: 'auto' }} // アニメーションを無効化して即応性を高める
             >
                 {messages.map((msg) => (
                     <ChatMessageBubble key={msg.id} message={msg} />
@@ -176,11 +187,12 @@ const AiAssistant: React.FC<AiAssistantProps> = ({ mode }) => {
                         </div>
                      </div>
                 )}
-                {/* Removed empty div with ref used for scrollIntoView */}
+                {/* Spacer (Expanded) to prevent content from being hidden behind input area */}
+                <div className="h-10 shrink-0" />
             </div>
 
             {/* Input Area */}
-            <div className="p-4 md:p-6 pt-2 bg-gradient-to-t from-[#0B1120] to-transparent z-20">
+            <div className="p-4 md:p-6 pt-2 bg-gradient-to-t from-[#0B1120] to-transparent z-20 shrink-0">
                 <div className="relative max-w-4xl mx-auto bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-2xl flex items-end p-2 transition-shadow focus-within:shadow-[0_0_20px_rgba(99,102,241,0.15)] focus-within:border-indigo-500/30">
                     <button className="p-3 text-slate-500 hover:text-slate-300 hover:bg-white/5 rounded-xl transition-colors shrink-0">
                         <Paperclip size={20} />
